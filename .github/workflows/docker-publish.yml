@@ -1,0 +1,31 @@
+name: Build and Push to Docker Hub
+
+# Defines when this workflow will execute
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Enables manual triggering from the GitHub Actions UI
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Execute Makefile build pipeline
+        env:
+          # Map GitHub secrets to the environment variables expected by your Makefile
+          DOCKER_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKER_PAT: ${{ secrets.DOCKERHUB_TOKEN }}
+          # You can optionally override Makefile defaults here:
+          # IMAGE_NAME: custom-mvp-timer
+          # TAG: ${{ github.sha }} 
+        run: |
+          set -euo pipefail
+          
+          echo "Initiating Makefile pipeline..."
+          # Runs the default 'all' target (login -> build -> push)
+          make all
