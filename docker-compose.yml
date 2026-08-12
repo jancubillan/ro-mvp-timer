@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  app:
+    # Replace this with your Docker Hub username
+    image: yourdockerhub_username/ro-mvp-timer:latest
+    container_name: ro_mvp_timer
+    restart: unless-stopped
+    networks:
+      - proxy-tier
+    security_opt:
+      - no-new-privileges:true
+    # Enable log rotation for the application container
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  proxy:
+    image: caddy:alpine
+    container_name: caddy_proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # Required for HTTP/3 support
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - proxy-tier
+    security_opt:
+      - no-new-privileges:true
+    # Enable log rotation for the proxy container
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  proxy-tier:
+
+volumes:
+  # Persistent volumes required for Let's Encrypt certificates
+  caddy_data:
+  caddy_config:
