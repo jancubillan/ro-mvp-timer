@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ragnarok Online MVP Timer</title>
+    <style>
+        /* --- CSS STYLES --- */
+        :root {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --primary: #f39c12;
+            --primary-hover: #e67e22;
+            --danger: #e74c3c;
+            --danger-hover: #c0392b;
+            --secondary: #3498db;
+            --secondary-hover: #2980b9;
+            --text-color: #e0e0e0;
+            --spawned-glow: rgba(231, 76, 60, 0.6);
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: var(--primary);
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            margin-bottom: 10px;
+        }
+
+        .controls {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            margin-bottom: 30px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #2a2a2a;
+            padding: 5px 15px;
+            border-radius: 5px;
+            border: 1px solid #444;
+        }
+
+        .input-group label {
+            font-size: 0.9rem;
+            color: #aaa;
+        }
+
+        select, input[type="time"], button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        select, input[type="time"] {
+            background: #2a2a2a;
+            color: #fff;
+            border: 1px solid #444;
+            color-scheme: dark; /* Makes the time picker icon dark mode */
+        }
+
+        button {
+            background: var(--primary);
+            color: #121212;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s ease-in-out;
+        }
+
+        button:hover { background: var(--primary-hover); }
+
+        .btn-secondary {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .btn-secondary:hover { background: var(--secondary-hover); }
+
+        #notif-btn {
+            background: #34495e;
+            color: white;
+            font-size: 0.9rem;
+            padding: 8px 12px;
+        }
+
+        #notif-btn:hover { background: #2c3e50; }
+
+        .timers-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            width: 100%;
+            max-width: 1000px;
+            justify-content: center;
+        }
+
+        .timer-card {
+            background: var(--card-bg);
+            border-left: 5px solid #27ae60;
+            padding: 20px;
+            border-radius: 8px;
+            width: 260px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: transform 0.2s;
+        }
+
+        .timer-card.spawned {
+            border-left-color: var(--danger);
+            animation: pulse 1.5s infinite alternate;
+        }
+
+        @keyframes pulse {
+            from { box-shadow: 0 0 5px var(--spawned-glow); }
+            to { box-shadow: 0 0 20px var(--spawned-glow); }
+        }
+
+        .mvp-name {
+            font-size: 1.3rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+            text-align: center;
+            color: #fff;
+        }
+
+        .tod-label {
+            font-size: 0.8rem;
+            color: #888;
+            margin-bottom: 15px;
+        }
+
+        .countdown {
+            font-size: 2.2rem;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: var(--primary);
+        }
+
+        .timer-card.spawned .countdown {
+            color: var(--danger);
+        }
+
+        .delete-btn {
+            background: var(--danger-hover);
+            color: white;
+            font-size: 0.9rem;
+            width: 100%;
+        }
+
+        .delete-btn:hover { background: var(--danger); }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>RO MVP Timer</h1>
+        <button id="notif-btn">🔔 Enable Desktop Notifications</button>
+    </div>
+
+    <!-- Timer Creation Controls -->
+    <div class="controls">
+        <select id="mvp-select">
+            <!-- Populated by JavaScript -->
+        </select>
+        
+        <div class="input-group">
+            <label for="tod">Tomb Time of Death:</label>
+            <input type="time" id="tod">
+        </div>
+        
+        <button id="add-btn">Add with Time</button>
+        <button id="add-now-btn" class="btn-secondary">Killed Just Now</button>
+    </div>
+
+    <!-- Active Timers Grid -->
+    <div class="timers-container" id="timers-container"></div>
+
+    <script>
+        /* --- JAVASCRIPT LOGIC --- */
+
+        const mvpData = [
+            { name: "Amon Ra", time: 60 },
+            { name: "Baphomet", time: 120 },
+            { name: "Dark Lord", time: 60 },
+            { name: "Doppelganger", time: 120 },
+            { name: "Dracula", time: 60 },
+            { name: "Eddga", time: 120 },
+            { name: "Golden Thief Bug", time: 60 },
+            { name: "Maya", time: 120 },
+            { name: "Moonlight Flower", time: 60 },
+            { name: "Orc Hero", time: 60 },
+            { name: "Orc Lord", time: 120 },
+            { name: "Osiris", time: 60 },
+            { name: "Pharaoh", time: 60 },
+            { name: "Phreeoni", time: 120 },
+            { name: "Tao Gunka", time: 300 },
+            { name: "Turtle General", time: 60 },
+            { name: "TEST (10 sec)", time: 0.166 } 
+        ];
+
+        let activeTimers = [];
+        let timerIdCounter = 0;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const select = document.getElementById('mvp-select');
+            
+            mvpData.sort((a, b) => a.name.localeCompare(b.name)).forEach((mvp) => {
+                const option = document.createElement('option');
+                option.value = mvp.time;
+                option.textContent = `${mvp.name} (${Math.round(mvp.time)}m)`;
+                option.dataset.name = mvp.name;
+                select.appendChild(option);
+            });
+
+            document.getElementById('add-btn').addEventListener('click', () => addTimer(false));
+            document.getElementById('add-now-btn').addEventListener('click', () => addTimer(true));
+            document.getElementById('notif-btn').addEventListener('click', requestNotifications);
+
+            loadTimers();
+            setInterval(updateTimers, 1000);
+            updateTimers(); 
+        });
+
+        function requestNotifications() {
+            if ("Notification" in window) {
+                Notification.requestPermission().then(permission => {
+                    if (permission === "granted") {
+                        alert("Notifications enabled! You will be alerted when an MVP spawns.");
+                    }
+                });
+            }
+        }
+
+        // Add a new MVP timer
+        // If isNow is true, it ignores the time input and uses Date.now()
+        function addTimer(isNow) {
+            const select = document.getElementById('mvp-select');
+            const selectedOption = select.options[select.selectedIndex];
+            const todInput = document.getElementById('tod').value; // e.g. "14:30"
+            
+            const mvpName = selectedOption.dataset.name;
+            const respawnTimeMinutes = parseFloat(selectedOption.value);
+            const respawnTimeMs = respawnTimeMinutes * 60 * 1000;
+            
+            let timeKilled;
+            let displayTod = "Just Now";
+
+            if (isNow || !todInput) {
+                timeKilled = Date.now();
+                
+                // Format "Just Now" time for display
+                const now = new Date();
+                displayTod = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } else {
+                // Parse the user's Time of Death
+                const [hours, minutes] = todInput.split(':').map(Number);
+                const now = new Date();
+                
+                // Create a Date object for today with the entered time
+                const todDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0);
+                
+                // Logic: If the entered time is in the future compared to right now, 
+                // it implies the MVP was killed yesterday (e.g., It's 01:00 AM, tomb says 23:30).
+                if (todDate.getTime() > now.getTime()) {
+                    todDate.setDate(todDate.getDate() - 1);
+                }
+                
+                timeKilled = todDate.getTime();
+                displayTod = todDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+
+            const spawnTime = timeKilled + respawnTimeMs;
+
+            const timer = {
+                id: timerIdCounter++,
+                name: mvpName,
+                spawnTime: spawnTime,
+                todDisplay: displayTod,
+                notified: false
+            };
+
+            activeTimers.push(timer);
+            saveTimers();
+            renderTimerCard(timer);
+            
+            document.getElementById('tod').value = ''; // Reset input
+        }
+
+        function renderTimerCard(timer) {
+            const container = document.getElementById('timers-container');
+            
+            const card = document.createElement('div');
+            card.className = 'timer-card';
+            card.id = `timer-${timer.id}`;
+
+            const title = document.createElement('div');
+            title.className = 'mvp-name';
+            title.textContent = timer.name;
+
+            const todText = document.createElement('div');
+            todText.className = 'tod-label';
+            todText.textContent = `Died: ${timer.todDisplay || 'Unknown'}`;
+
+            const countdown = document.createElement('div');
+            countdown.className = 'countdown';
+            countdown.id = `countdown-${timer.id}`;
+            countdown.textContent = "00:00:00";
+
+            const delBtn = document.createElement('button');
+            delBtn.className = 'delete-btn';
+            delBtn.textContent = 'Remove Tomb';
+            delBtn.onclick = () => removeTimer(timer.id);
+
+            card.appendChild(title);
+            card.appendChild(todText);
+            card.appendChild(countdown);
+            card.appendChild(delBtn);
+            container.appendChild(card);
+        }
+
+        function removeTimer(id) {
+            activeTimers = activeTimers.filter(t => t.id !== id);
+            const card = document.getElementById(`timer-${id}`);
+            if (card) card.remove();
+            saveTimers();
+        }
+
+        function updateTimers() {
+            const now = Date.now();
+
+            activeTimers.forEach(timer => {
+                const remaining = timer.spawnTime - now;
+                const countdownEl = document.getElementById(`countdown-${timer.id}`);
+                const cardEl = document.getElementById(`timer-${timer.id}`);
+
+                if (!countdownEl || !cardEl) return;
+
+                if (remaining <= 0) {
+                    countdownEl.textContent = "SPAWNED!";
+                    
+                    if (!cardEl.classList.contains('spawned')) {
+                        cardEl.classList.add('spawned');
+                        
+                        if ("Notification" in window && Notification.permission === "granted" && !timer.notified) {
+                            new Notification("MVP Spawned!", {
+                                body: `${timer.name} is respawning now! (Died: ${timer.todDisplay})`,
+                            });
+                            timer.notified = true;
+                            saveTimers(); 
+                        }
+                    }
+                } else {
+                    const totalSeconds = Math.floor(remaining / 1000);
+                    const hours = Math.floor(totalSeconds / 3600);
+                    const minutes = Math.floor((totalSeconds % 3600) / 60);
+                    const seconds = totalSeconds % 60;
+
+                    const h = String(hours).padStart(2, '0');
+                    const m = String(minutes).padStart(2, '0');
+                    const s = String(seconds).padStart(2, '0');
+
+                    countdownEl.textContent = `${h}:${m}:${s}`;
+                }
+            });
+        }
+
+        function saveTimers() {
+            localStorage.setItem('roMvpTimers', JSON.stringify(activeTimers));
+        }
+
+        function loadTimers() {
+            const saved = localStorage.getItem('roMvpTimers');
+            if (saved) {
+                activeTimers = JSON.parse(saved);
+                activeTimers.forEach(t => {
+                    if (t.id >= timerIdCounter) timerIdCounter = t.id + 1;
+                    renderTimerCard(t);
+                });
+            }
+        }
+    </script>
+</body>
+</html>
